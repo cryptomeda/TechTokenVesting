@@ -6,6 +6,10 @@ interface ERC20 {
     function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
 }
 
+/*
+Inspired by and based on following vesting contract:
+https://gist.github.com/rstormsf/7cfb0c6b7a835c0c67b4a394b4fd9383
+*/
 contract TechTokenVesting {
 
     ERC20 public techToken;
@@ -69,7 +73,7 @@ contract TechTokenVesting {
         techToken = _techToken;
     }
 
-    function vestingGroupParameter(VGroup _name, 
+    function addVestingGroupParameter(VGroup _name, 
                             uint8 _vestingDurationInMonths, 
                             uint8 _vestingCliffInMonths, 
                             uint8 _percent) 
