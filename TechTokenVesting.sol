@@ -73,6 +73,8 @@ contract TechTokenVesting {
         techToken = _techToken;
     }
 
+    /// @notice Add vesting parameters for specific VestingGroup into mapping "parameters"
+    /// Needs to be called before calling addTokenGrant
     function addVestingGroupParameter(VGroup _name, 
                             uint8 _vestingDurationInMonths, 
                             uint8 _vestingCliffInMonths, 
@@ -83,7 +85,7 @@ contract TechTokenVesting {
     }
 
     /// @notice Add one or more token grants
-    /// The amount of tokens here needs to be preapproved for this TokenVesting contract before calling this fucntion
+    /// The amount of tokens here needs to be preapproved for this TokenVesting contract before calling this function
     /// @param _recipient Address of the token grant recipient
     /// @param _name Vesting group name, which is mapped to its specific parameters 
     /// @param _startTime Grant start time in seconds (unix timestamp)
