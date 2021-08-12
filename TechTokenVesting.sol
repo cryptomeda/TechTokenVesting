@@ -2,7 +2,6 @@
 pragma solidity 0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 interface ERC20 {
     function transfer(address recipient, uint256 amount) external returns (bool);
@@ -14,7 +13,6 @@ Inspired by and based on following vesting contract:
 https://gist.github.com/rstormsf/7cfb0c6b7a835c0c67b4a394b4fd9383
 */
 contract TechTokenVesting is Ownable {
-    using SafeERC20 for ERC20;
 
     event GrantAdded(address indexed recipient, uint256 grantId);
     event GrantTokensClaimed(address indexed recipient, uint256 amountClaimed);
@@ -32,7 +30,6 @@ contract TechTokenVesting is Ownable {
                 Private_TGE,
                 Private_Linear,
                 Public_TGE,
-                Public_Linear,
                 Public_Linear,
                 Removed_Grant,
                 Custom1,
@@ -126,7 +123,7 @@ contract TechTokenVesting is Ownable {
             activeGrants[_recipient[i]].push(totalVestingCount);
 
             // Transfer the grant tokens under the control of the vesting contract
-            techToken.safeTransferFrom(msg.sender, address(this), _amount[i]);
+            require(techToken.transferFrom(msg.sender, address(this), _amount[i]), "transfer failed");
 
             emit GrantAdded(_recipient[i], totalVestingCount);
             totalVestingCount++;    //grantId
@@ -145,7 +142,7 @@ contract TechTokenVesting is Ownable {
         tokenGrant.daysClaimed = uint16(tokenGrant.daysClaimed+(timeVested));
         tokenGrant.totalClaimed = uint256(tokenGrant.totalClaimed+(amountVested));
 
-        techToken.safeTransfer(tokenGrant.recipient, amountVested);
+        require(techToken.transfer(tokenGrant.recipient, amountVested), "token transfer failed");
         emit GrantTokensClaimed(tokenGrant.recipient, amountVested);
     }
 
@@ -173,21 +170,21 @@ contract TechTokenVesting is Ownable {
         tokenGrant.totalClaimed = 0;
         tokenGrant.recipient = address(0);
 
-        if (amountVested > 0) techToken.safeTransfer(recipient, amountVested); 
+        if (amountVested > 0) require(techToken.transfer(recipient, amountVested), "token transfer failed"); 
         
         // Non-vested tokens remain in smart contract
         // They can be withdrawn only using addTokenGrant 
-        // if (amountNotVested > 0) techToken.safeTransfer(msg.sender, amountNotVested);
+        // if (amountNotVested > 0) require(techToken.transfer(msg.sender, amountNotVested), "token transfer failed");
 
         emit GrantRemoved(recipient, amountVested, amountNotVested);
     }
 
     function changeAdmin(address _newAdmin) 
         external 
-        onlyAdmin
+        onlyOwner
         onlyValidAddress(_newAdmin)
     {
-        owner = _newAdmin;
+        admin = _newAdmin;
         emit ChangedAdmin(_newAdmin);
     }
 
