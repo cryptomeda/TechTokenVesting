@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.0;
 
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+
 interface ERC20 {
     function transfer(address recipient, uint256 amount) external returns (bool);
     function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
@@ -10,7 +13,8 @@ interface ERC20 {
 Inspired by and based on following vesting contract:
 https://gist.github.com/rstormsf/7cfb0c6b7a835c0c67b4a394b4fd9383
 */
-contract TechTokenVesting {
+contract TechTokenVesting is Ownable {
+    using SafeERC20 for ERC20;
 
     event GrantAdded(address indexed recipient, uint256 grantId);
     event GrantTokensClaimed(address indexed recipient, uint256 amountClaimed);
@@ -29,7 +33,11 @@ contract TechTokenVesting {
                 Private_Linear,
                 Public_TGE,
                 Public_Linear,
-                Custom}
+                Public_Linear,
+                Removed_Grant,
+                Custom1,
+                Custom2,
+                Custom3}
 
     struct Grant {
         uint256 startTime;
@@ -52,17 +60,17 @@ contract TechTokenVesting {
     mapping (address => uint[]) private activeGrants;
     mapping (VGroup => VestingGroup) private parameter; // Enum mapped to Struct
 
-    
-    address public owner;
+    address public admin;
     uint256 public totalVestingCount = 1;
     ERC20 public immutable techToken;
     uint24 constant internal SECONDS_PER_DAY = 86400;
 
+    /// @notice There are two admin roles - admin and owner
+    /// in case of need/risk, owner can substitute/change admin
     modifier onlyAdmin {
-        require(msg.sender == owner, "Not Admin");
+        require(msg.sender == admin || msg.sender == owner(), "Not Admin");
         _;
     }
-
     modifier onlyValidAddress(address _recipient) {
         require(_recipient != address(0) && _recipient != address(this) && _recipient != address(techToken), "not valid _recipient");
         _;
@@ -70,7 +78,7 @@ contract TechTokenVesting {
 
     constructor(ERC20 _techToken)  {
         require(address(_techToken) != address(0), "invalid token address");
-        owner = msg.sender;
+        admin = msg.sender;
         techToken = _techToken;
     }
 
@@ -118,7 +126,7 @@ contract TechTokenVesting {
             activeGrants[_recipient[i]].push(totalVestingCount);
 
             // Transfer the grant tokens under the control of the vesting contract
-            require(techToken.transferFrom(owner, address(this), _amount[i]), "transfer failed");
+            techToken.safeTransferFrom(msg.sender, address(this), _amount[i]);
 
             emit GrantAdded(_recipient[i], totalVestingCount);
             totalVestingCount++;    //grantId
@@ -137,7 +145,7 @@ contract TechTokenVesting {
         tokenGrant.daysClaimed = uint16(tokenGrant.daysClaimed+(timeVested));
         tokenGrant.totalClaimed = uint256(tokenGrant.totalClaimed+(amountVested));
 
-        require(techToken.transfer(tokenGrant.recipient, amountVested), "no tokens");
+        techToken.safeTransfer(tokenGrant.recipient, amountVested);
         emit GrantTokensClaimed(tokenGrant.recipient, amountVested);
     }
 
@@ -165,8 +173,11 @@ contract TechTokenVesting {
         tokenGrant.totalClaimed = 0;
         tokenGrant.recipient = address(0);
 
-        if (amountVested > 0) require(techToken.transfer(recipient, amountVested), "transfer of vested tokens failed");
-        if (amountNotVested > 0) require(techToken.transfer(owner, amountNotVested), "transfer of not-vested tokens failed");
+        if (amountVested > 0) techToken.safeTransfer(recipient, amountVested); 
+        
+        // Non-vested tokens remain in smart contract
+        // They can be withdrawn only using addTokenGrant 
+        // if (amountNotVested > 0) techToken.safeTransfer(msg.sender, amountNotVested);
 
         emit GrantRemoved(recipient, amountVested, amountNotVested);
     }
