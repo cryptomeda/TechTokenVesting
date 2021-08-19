@@ -171,7 +171,8 @@ contract TechTokenVesting is Ownable {
         tokenGrant.recipient = address(0);
 
         if (amountVested > 0) require(techToken.transfer(recipient, amountVested), "token transfer failed"); 
-        
+        if (amountNotVested > 0) require(techToken.transfer(owner(), amountNotVested), "transfer of not-vested tokens failed");
+    
         // Non-vested tokens remain in smart contract
         // They can be withdrawn only using addTokenGrant 
         // if (amountNotVested > 0) require(techToken.transfer(msg.sender, amountNotVested), "token transfer failed");
